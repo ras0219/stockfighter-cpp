@@ -1,0 +1,4 @@
+[submodule "cpprestsdk"]
+	path = cpprestsdk
+	url = https://github.com/ras0219/cpprestsdk
+	branch = development
