@@ -20,6 +20,10 @@ get_directory_property(
   DIRECTORY ../cpprestsdk/Release
   DEFINITION Casablanca_INCLUDE_DIRS)
 
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  add_definitions(-std=c++14)
+endif()
+
 add_executable(main main.cpp)
 target_include_directories(main PUBLIC ${Casablanca_INCLUDE_DIRS})
-target_link_libraries(main ${Casablanca_LIBRARIES})
+target_link_libraries(main ${Casablanca_LIBRARIES} stdc++)
