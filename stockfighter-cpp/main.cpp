@@ -1,12 +1,15 @@
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
-#include <cpprest/http_client.h>
+#include "msgs.h"
+#include "sf_client.h"
 
 using namespace web::http;
 using namespace client;
-
 using namespace std;
+
+
+
 
 void fatal(const char* msg) {
   cerr << msg << "\n";
@@ -22,13 +25,19 @@ int main(int argc, const char** argv) {
 
   cout << "API Key: '" << apikey << "'\n";
 
-  http_client client("https://api.stockfighter.io");
+  sf_client client(apikey);
 
-  auto res = client.request("GET", "/ob/api/venues").get();
+  cout << client.api_heartbeat() << "\n";
 
-  auto body = res.extract_utf8string(true).get();
+  cout << client.venue_stocks("TESTEX") << "\n";
 
-  cout << body << "\n===END OF MESSAGE===\n";
+  // http_client client("https://api.stockfighter.io");
+
+  // auto res = client.request("GET", "/ob/api/venues").get();
+
+  // auto body = res.extract_utf8string(true).get();
+
+  // cout << body << "\n===END OF MESSAGE===\n";
 
   return 0;
 }

@@ -24,6 +24,6 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   add_definitions(-std=c++14)
 endif()
 
-add_executable(main main.cpp)
+add_executable(main main.cpp msgs.cpp msgs.h sf_client.cpp sf_client.h)
 target_include_directories(main PUBLIC ${Casablanca_INCLUDE_DIRS})
 target_link_libraries(main ${Casablanca_LIBRARIES} stdc++)
