@@ -2,6 +2,7 @@
 #include <cpprest/http_client.h>
 
 using namespace std;
+using namespace web::http;
 
 sf_client::sf_client(std::string apikey)
   : sf_client(move(apikey), "https://api.stockfighter.io")
@@ -16,14 +17,14 @@ sf_client::~sf_client() {}
 optional<unit> sf_client::api_heartbeat() {
   optional<unit> ret;
 
-  auto res = m_client->request("GET", "/ob/api/heartbeat").get();
+  auto res = m_client->request(methods::GET, "/ob/api/heartbeat").get();
   auto doc = res.extract_json().get();
   auto& obj = doc.as_object();
   ret.ok = obj["ok"].as_bool() ? OK : ERROR;
   switch (ret.ok) {
   case OK: break;
   case ERROR:
-    ret.err = obj["error"].as_string();
+    ret.err = obj["error"].as_utf8string();
     break;
   }
 
@@ -34,21 +35,21 @@ optional<unit> sf_client::api_heartbeat() {
 optional<symbolslist_t> sf_client::venue_stocks(const std::string& venue) {
   optional<symbolslist_t> ret;
 
-  auto res = m_client->request("GET", "/ob/api/venues/"+venue+"/stocks").get();
+  auto res = m_client->request(methods::GET, "/ob/api/venues/"+venue+"/stocks").get();
   auto doc = res.extract_json().get();
   auto& obj = doc.as_object();
   ret.ok = obj["ok"].as_bool() ? OK : ERROR;
   switch (ret.ok) {
   case ERROR:
-    ret.err = obj["error"].as_string();
+    ret.err = obj["error"].as_utf8string();
     break;
   case OK: {
     auto& arr = obj["symbols"].as_array();
     for (auto&& sym : arr) {
       auto& symobj = sym.as_object();
       ret.data.symbols.push_back(symboldef_t{
-	  symobj["symbol"].as_string(),
-	    symobj["name"].as_string()
+	  symobj["symbol"].as_utf8string(),
+	    symobj["name"].as_utf8string()
 	    });
     }
     break;
