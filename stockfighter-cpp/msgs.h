@@ -19,11 +19,11 @@ struct optional {
 
   T* operator->() {
     if (ok == ERROR) throw std::runtime_error("dereference bad object");
-    return data;
+    return &data;
   }
   T const* operator->() const {
     if (ok == ERROR) throw std::runtime_error("dereference bad object");
-    return data;
+    return &data;
   }
 
   T data;
@@ -38,6 +38,69 @@ struct symbolslist_t {
   std::vector<symboldef_t> symbols;
 };
 
+struct request_t {
+  uint64_t price;
+  uint64_t qty;
+};
+
+struct orderbook_t {
+  std::vector<request_t> bids;
+  std::vector<request_t> asks;
+
+  std::string timestamp;
+};
+enum direction_t {
+  BUY,
+  SELL
+};
+enum order_type_t {
+  LIMIT,
+  MARKET,
+  FOK,
+  IOC
+};
+enum open_t {
+  OPEN,
+  CLOSED
+};
+
+const char* stringify(order_type_t t);
+
+struct order_request_t {
+  std::string account;
+  std::string venue;
+  std::string symbol;
+  request_t req;
+  direction_t direction;
+  order_type_t type;
+};
+
+struct order_response_t {
+  uint64_t id;
+
+  uint64_t original_qty;
+  uint64_t outstanding_qty;
+  uint64_t filled_qty;
+
+  // TODO: fills
+
+  open_t open;
+
+  std::string timestamp;
+};
+
+struct gm_start_level_t {
+  std::string account;
+  uint64_t instance;
+
+  std::string instructions;
+  std::string order_types;
+  uint64_t seconds_per_day;
+
+  std::vector<std::string> tickers;
+  std::vector<std::string> venues;
+};
+
 std::ostream& operator<<(std::ostream& os, ok_t const& ok);
 
 template<class T>
@@ -49,6 +112,10 @@ std::ostream& operator<<(std::ostream& os, optional<T> const& obj) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, unit const&);
 std::ostream& operator<<(std::ostream& os, symboldef_t const& msg);
 std::ostream& operator<<(std::ostream& os, symbolslist_t const& msg);
-std::ostream& operator<<(std::ostream& os, unit const&);
+std::ostream& operator<<(std::ostream& os, request_t const& req);
+std::ostream& operator<<(std::ostream& os, orderbook_t const& msg);
+std::ostream& operator<<(std::ostream& os, order_response_t const& msg);
+std::ostream& operator<<(std::ostream& os, gm_start_level_t const& msg);

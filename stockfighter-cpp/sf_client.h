@@ -13,8 +13,12 @@ public:
   sf_client(std::string apikey, std::string host);
   ~sf_client();
 
+  optional<gm_start_level_t> start_level(const std::string& level);
+
   optional<unit> api_heartbeat();
   optional<symbolslist_t> venue_stocks(const std::string& venue);
+  optional<orderbook_t> orderbook_for_venue(const std::string& venue, const std::string& stock);
+  optional<order_response_t> post_order(const order_request_t& order);
 
 private:
   std::string m_apikey;

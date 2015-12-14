@@ -24,6 +24,11 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   add_definitions(-std=c++14)
 endif()
 
-add_executable(main main.cpp msgs.cpp msgs.h sf_client.cpp sf_client.h)
-target_include_directories(main PUBLIC ${Casablanca_INCLUDE_DIRS})
-target_link_libraries(main ${Casablanca_LIBRARIES} stdc++)
+include_directories(${Casablanca_INCLUDE_DIRS})
+link_libraries(${Casablanca_LIBRARIES} stdc++)
+
+add_library(sf STATIC msgs.cpp msgs.h sf_client.cpp sf_client.h)
+link_libraries(sf)
+
+add_executable(level2 level2.cpp)
+add_executable(level3 level3.cpp)
