@@ -28,14 +28,12 @@ int main(int argc, const char** argv) {
   uint64_t shares_to_buy = 100000;
 
   while (shares_to_buy > 0) {
-    using namespace literals;
-
     auto obook = client.orderbook_for_venue(venue, symbol);
 
     cout << "obook: " << obook << "\n";
 
     if (obook->asks.empty()) {
-      this_thread::sleep_for(1s);
+      this_thread::sleep_for(chrono::seconds(2));
       continue;
     }
 
@@ -60,7 +58,7 @@ int main(int argc, const char** argv) {
       cerr << "warning: unknown error\n";
     }
 
-    this_thread::sleep_for(1s);
+    this_thread::sleep_for(chrono::seconds(1));
   }
   return 0;
 }

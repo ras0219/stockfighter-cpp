@@ -8,7 +8,6 @@
 using namespace web::http;
 using namespace client;
 using namespace std;
-using namespace literals;
 
 void fatal(const char* msg) {
   cerr << msg << "\n";
@@ -23,7 +22,7 @@ int main(int argc, const char** argv) {
 
   sf_client client(apikey);
 
-  client.tracing = true;
+  //client.tracing = true;
 
   auto slevel = [&](){
     if (argc >= 3) {
@@ -38,8 +37,6 @@ int main(int argc, const char** argv) {
 
   cout << "=== level start: "<<slevel<<" ===" << endl;
 
-  this_thread::sleep_for(3s);
-  
   string account = slevel->account;
   string venue = slevel->venues.front();
   string symbol = slevel->tickers.front();
@@ -87,7 +84,7 @@ int main(int argc, const char** argv) {
     if (asks.empty() && bids.empty()) {
       // sleep and try again
       cout << "no offers. sleeping." << endl;
-      this_thread::sleep_for(1s);
+      this_thread::sleep_for(chrono::seconds(1));
       continue;
     } else if (bids.empty()) {
       best_ask = asks.front().price;
@@ -137,7 +134,7 @@ int main(int argc, const char** argv) {
       outstanding_orders.push_back(*res);
     } catch (exception& e) { cerr << "error: " << e.what() << endl; }
 
-    this_thread::sleep_for(2s);
+    this_thread::sleep_for(chrono::seconds(3));
     cout << "looping.\n";
   }  
   return 0;

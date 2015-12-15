@@ -7,6 +7,7 @@
 using namespace web;
 using namespace http;
 using namespace std;
+using namespace web::http;
 
 sf_client::sf_client(std::string apikey)
   : sf_client(move(apikey), "https://api.stockfighter.io")
@@ -33,7 +34,7 @@ struct parser {
   }
 
   explicit operator string() const {
-    return val.as_string().c_str();
+    return val.as_utf8string().c_str();
   }
 
   operator unit() const { return unit(); }
@@ -76,11 +77,18 @@ struct parser {
   }
 
   operator direction_t() const {
-    return val.as_string() == "buy" ? BUY : SELL;
+    return val.as_utf8string() == "buy" ? BUY : SELL;
   }
 
   operator open_t() const {
     return val.as_bool() ? OPEN : CLOSED;
+  }
+
+  operator request_t() const {
+      request_t ret;
+      ret.price = at("price");
+      ret.qty = at("qty");
+      return ret;
   }
 
   operator order_response_t() const {
@@ -103,6 +111,14 @@ struct parser {
     ret.fills = at("fills");
 
     return ret;
+  }
+
+  operator orderbook_t() const {
+      orderbook_t ret;
+      ret.asks = at("asks");
+      ret.bids = at("bids");
+      ret.timestamp = string(at("ts"));
+      return ret;
   }
 
   template<class T>
@@ -147,7 +163,7 @@ optional<unit> sf_client::api_heartbeat() {
   TRACE;
   optional<unit> ret;
 
-  auto res = m_client->request("GET", "/ob/api/heartbeat").get();
+  auto res = m_client->request(methods::GET, "/ob/api/heartbeat").get();
   auto doc = res.extract_json().get();
   TRACE;
   return parser{doc};
@@ -157,58 +173,35 @@ optional<symbolslist_t> sf_client::venue_stocks(const std::string& venue) {
   TRACE;
   optional<symbolslist_t> ret;
 
-  auto res = m_client->request("GET", "/ob/api/venues/"+venue+"/stocks").get();
+  auto res = m_client->request(methods::GET, "/ob/api/venues/"+venue+"/stocks").get();
   auto doc = res.extract_json().get();
 
   TRACE;
   return parser{doc};
 }
 
-void parse_into(const json::array& arr, std::vector<request_t>& reqs) {
-  for (auto&& req : arr) {
-    auto& reqobj = req.as_object();
-    reqs.push_back(request_t{
-	reqobj.at("price").as_number().to_uint64(),
-	  reqobj.at("qty").as_number().to_uint64()});
-  }
-}
-
 optional<orderbook_t> sf_client::orderbook_for_venue(const std::string& venue, const std::string& stock) {
   TRACE;
   optional<orderbook_t> ret;
   
-  auto res = m_client->request("GET", "/ob/api/venues/"+venue+"/stocks/"+stock).get();
+  auto res = m_client->request(methods::GET, "/ob/api/venues/"+venue+"/stocks/"+stock).get();
   auto doc = res.extract_json().get();
 
-  auto& obj = doc.as_object();
-  ret.ok = obj["ok"].as_bool() ? OK : ERROR;
-  switch (ret.ok) {
-  case ERROR:
-    ret.err = obj["error"].as_string();
-    break;
-  case OK: {
-    if (!obj["bids"].is_null()) parse_into(obj["bids"].as_array(), ret.data.bids);
-    if (!obj["asks"].is_null()) parse_into(obj["asks"].as_array(), ret.data.asks);
-    ret.data.timestamp = obj["ts"].as_string();
-    break;
-  }
-  }
-
   TRACE;
-  return ret;
-}
+  return parser{doc};
+  }
 
 json::value order_to_json(const order_request_t& order) {
-  std::vector<std::pair<std::string, json::value>> fields;
-  fields.emplace_back("account", json::value::string(order.account));
-  fields.emplace_back("venue", json::value::string(order.venue));
-  fields.emplace_back("stock", json::value::string(order.symbol));
-  fields.emplace_back("price", json::value::number(order.req.price));
-  fields.emplace_back("qty", json::value::number(order.req.qty));
-  fields.emplace_back("direction", json::value::string(order.direction == BUY ? "buy" : "sell"));
-  fields.emplace_back("orderType", json::value::string(stringify(order.type)));
+  std::vector<std::pair<utility::string_t, json::value>> fields;
+  fields.emplace_back(U("account"), json::value::string(order.account));
+  fields.emplace_back(U("venue"), json::value::string(order.venue));
+  fields.emplace_back(U("stock"), json::value::string(order.symbol));
+  fields.emplace_back(U("price"), json::value::number(order.req.price));
+  fields.emplace_back(U("qty"), json::value::number(order.req.qty));
+  fields.emplace_back(U("direction"), json::value::string(order.direction == BUY ? "buy" : "sell"));
+  fields.emplace_back(U("orderType"), json::value::string(stringify(order.type)));
   return json::value::object(move(fields));
-}
+  }
 
 template<class F>
 vector<result_of_t<F(const json::value&)>> map(const json::value& v, F f) {
@@ -229,7 +222,7 @@ optional<order_response_t> sf_client::post_order(const order_request_t& order) {
   optional<order_response_t> ret;
   auto uri = "/ob/api/venues/"+order.venue+"/stocks/"+order.symbol+"/orders";
 
-  http_request req("POST");
+  http_request req(methods::POST);
   req.set_request_uri(uri);
   req.headers().add("X-Starfighter-Authorization", m_apikey);
   req.set_body(order_to_json(order));
@@ -248,7 +241,7 @@ optional<order_response_t> sf_client::cancel_order(const std::string& venue,
   optional<order_response_t> ret;
   auto uri = "/ob/api/venues/"+venue+"/stocks/"+symbol+"/orders/"+to_string(id);
 
-  http_request req("DELETE");
+  http_request req(methods::DEL);
   req.set_request_uri(uri);
   req.headers().add("X-Starfighter-Authorization", m_apikey);
 
@@ -265,7 +258,7 @@ optional<gm_start_level_t> sf_client::start_level(const std::string& level) {
 
   auto uri = "/gm/levels/" + level;
 
-  http_request req("POST");
+  http_request req(methods::POST);
   req.set_request_uri(uri);
   req.headers().add("X-Starfighter-Authorization", m_apikey);
 
@@ -282,7 +275,8 @@ optional<gm_start_level_t> sf_client::restart_level(uint64_t id) {
 
   auto uri = "/gm/instances/" + to_string(id) + "/restart";
 
-  http_request req("POST");
+
+  http_request req(methods::POST);
   req.set_request_uri(uri);
   req.headers().add("X-Starfighter-Authorization", m_apikey);
 

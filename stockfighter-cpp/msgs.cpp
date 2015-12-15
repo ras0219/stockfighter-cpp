@@ -85,4 +85,5 @@ std::ostream& operator<<(std::ostream& os, const gm_start_level_t& msg) {
      << "venues{";
   serialize(os, msg.venues);
   os << "}}";
+  return os;
 }

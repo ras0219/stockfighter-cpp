@@ -20,12 +20,15 @@ get_directory_property(
   DIRECTORY ../cpprestsdk/Release
   DEFINITION Casablanca_INCLUDE_DIRS)
 
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+if (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
   add_definitions(-std=c++14)
 endif()
 
 include_directories(${Casablanca_INCLUDE_DIRS})
-link_libraries(${Casablanca_LIBRARIES} stdc++)
+link_libraries(${Casablanca_LIBRARIES})
+if (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
+  link_libraries(stdc++)
+endif()
 
 add_library(sf STATIC msgs.cpp msgs.h sf_client.cpp sf_client.h util.h util.cpp)
 link_libraries(sf)
