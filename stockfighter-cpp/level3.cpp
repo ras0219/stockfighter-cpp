@@ -23,7 +23,7 @@ int main(int argc, const char** argv) {
 
   sf_client client(apikey);
 
-  //client.tracing = true;
+  client.tracing = true;
 
   auto slevel = [&](){
     if (argc >= 3) {
@@ -44,9 +44,13 @@ int main(int argc, const char** argv) {
   string venue = slevel->venues.front();
   string symbol = slevel->tickers.front();
 
+  int64_t max_position = 1000;
   uint64_t total_buys = 0;
   uint64_t total_sells = 0;
   
+  uint64_t total_cash_sent = 0;
+  uint64_t total_cash_recv = 0;
+
   vector<order_response_t> outstanding_orders;
 
   while (1) {
@@ -54,14 +58,21 @@ int main(int argc, const char** argv) {
     for (auto&& o : outstanding_orders) {
       auto canc = client.cancel_order(venue, symbol, o.id);
 
-      if (canc->status.direction == BUY)
+      if (canc->status.direction == BUY) {
         total_buys += canc->status.filled_qty;
-      if (canc->status.direction == SELL)
+        for (auto&& fill : canc->status.fills)
+          total_cash_sent += fill.req.price * fill.req.qty;
+      }
+      if (canc->status.direction == SELL) {
         total_sells += canc->status.filled_qty;
+        for (auto&& fill : canc->status.fills)
+          total_cash_recv += fill.req.price * fill.req.qty;
+      }
     }
     outstanding_orders.clear();
 
     cout << "trades to date: B:" << total_buys << " S:" << total_sells << endl;
+    cout << "cash:           B:" << total_cash_sent << " S:" << total_cash_recv << endl;
     
     auto obook = client.orderbook_for_venue(venue, symbol);
     cout << "obook: " << obook << endl;
@@ -92,13 +103,15 @@ int main(int argc, const char** argv) {
     cout << "best ask: " << best_ask << endl;
     cout << "best bid: " << best_bid << endl;
 
-    {
+    int64_t cur_position = int64_t(total_buys) - int64_t(total_sells);
+
+    try {
       order_request_t ort;
       ort.account = account;
       ort.venue = venue;
       ort.symbol = symbol;
       ort.req.price = best_bid + 5;
-      ort.req.qty = 20;
+      ort.req.qty = (max_position - cur_position)/2;
       ort.direction = BUY;
       ort.type = LIMIT;
 
@@ -106,15 +119,15 @@ int main(int argc, const char** argv) {
       auto res = client.post_order(ort);
       cout << "RESP: " << res << endl;
       outstanding_orders.push_back(*res);
-    }    
+    } catch (exception& e) { cerr << "error: " << e.what() << endl; }
 
-    {
+    try {
       order_request_t ort;
       ort.account = account;
       ort.venue = venue;
       ort.symbol = symbol;
       ort.req.price = best_ask - 5;
-      ort.req.qty = 20;
+      ort.req.qty = (max_position + cur_position)/2;
       ort.direction = SELL;
       ort.type = LIMIT;
 
@@ -122,7 +135,7 @@ int main(int argc, const char** argv) {
       auto res = client.post_order(ort);
       cout << "RESP: " << res << endl;
       outstanding_orders.push_back(*res);
-    }    
+    } catch (exception& e) { cerr << "error: " << e.what() << endl; }
 
     this_thread::sleep_for(2s);
     cout << "looping.\n";

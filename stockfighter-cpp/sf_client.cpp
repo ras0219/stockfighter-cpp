@@ -248,8 +248,6 @@ optional<order_response_t> sf_client::cancel_order(const std::string& venue,
   optional<order_response_t> ret;
   auto uri = "/ob/api/venues/"+venue+"/stocks/"+symbol+"/orders/"+to_string(id);
 
-  cerr << "uri:" << uri << endl;
-  
   http_request req("DELETE");
   req.set_request_uri(uri);
   req.headers().add("X-Starfighter-Authorization", m_apikey);
