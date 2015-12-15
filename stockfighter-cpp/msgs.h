@@ -83,12 +83,17 @@ struct order_request_t {
   order_type_t type;
 };
 
+struct fill_t {
+  request_t req;
+  std::string timestamp;
+};
+
 struct order_status_t {
   uint64_t original_qty;
   uint64_t outstanding_qty;
   uint64_t filled_qty;
 
-  // TODO: fills
+  std::vector<fill_t> fills;
   open_t open;
 
   direction_t direction;

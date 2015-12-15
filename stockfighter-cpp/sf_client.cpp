@@ -114,16 +114,106 @@ json::value order_to_json(const order_request_t& order) {
   return json::value::object(move(fields));
 }
 
-order_status_t parse_status(const json::object& obj) {
-  order_status_t ret;
-  ret.original_qty = obj.at("originalQty").as_number().to_uint64();
-  ret.outstanding_qty = obj.at("qty").as_number().to_uint64();
-  ret.filled_qty = obj.at("totalFilled").as_number().to_uint64();
-  ret.direction = obj.at("direction").as_string() == "buy" ? BUY : SELL;
-  ret.open = obj.at("open").as_bool() ? OPEN : CLOSED;
-  ret.timestamp = obj.at("ts").as_string();
+template<class F>
+vector<result_of_t<F(const json::value&)>> map(const json::value& v, F f) {
+  using v_t = vector<result_of_t<F(const json::value&)>>;
+  v_t ret;
+
+  if (v.is_null())
+    return ret;
+
+  for (auto&& e : v.as_array())
+    ret.push_back(f(e));
+  
   return ret;
 }
+
+// This is a parser based on return type deduction.
+// I am not sure how I feel about this... but it does make for very elegant code.
+struct parser {
+  const json::value& val;
+
+  parser at(size_t sz) const {
+    return parser{val.at(sz)};
+  }
+  parser at(const std::string& key) const {
+    return parser{val.at(key)};
+  }
+
+  explicit operator string() const {
+    return val.as_string().c_str();
+  }
+  
+  operator uint64_t() const {
+    return val.as_number().to_uint64();
+  }
+
+  template<class T>
+  operator vector<T>() const {
+    vector<T> ret;
+    if (val.is_null())
+      return ret;
+    for (auto&& e : val.as_array())
+      ret.push_back(parser{e});
+
+    return ret;
+  }
+
+  operator ok_t() const {
+    return val.as_bool() ? OK : ERROR;
+  }
+  
+  operator fill_t() const {
+    fill_t ret;
+    ret.req.price = at("price");
+    ret.req.qty = at("qty");
+    ret.timestamp = string(at("ts"));
+    return ret;
+  }
+
+  operator direction_t() const {
+    return val.as_string() == "buy" ? BUY : SELL;
+  }
+
+  operator open_t() const {
+    return val.as_bool() ? OPEN : CLOSED;
+  }
+
+  operator order_response_t() const {
+    order_response_t ret;
+    ret.id = at("id");
+    ret.status = *this;
+    return ret;
+  }
+  
+  operator order_status_t() const {
+    order_status_t ret;
+    ret.original_qty = at("originalQty");
+    ret.outstanding_qty = at("qty");
+    ret.filled_qty = at("totalFilled");
+    ret.direction = at("direction");
+    ret.open = at("open");
+    ret.timestamp = string(at("ts"));
+
+    // fills
+    ret.fills = at("fills");
+
+    return ret;
+  }
+
+  template<class T>
+  operator optional<T>() const {
+    optional<T> ret;
+    ret.ok = at("ok");
+    if (ret.ok == ERROR) {
+      ret.err = string(at("error"));
+      return ret;
+    }
+
+    ret.data = *this;
+    return ret;
+  }
+};
 
 optional<order_response_t> sf_client::post_order(const order_request_t& order) {
   TRACE;
@@ -138,22 +228,8 @@ optional<order_response_t> sf_client::post_order(const order_request_t& order) {
   auto res = m_client->request(req).get();
   auto doc = res.extract_json().get();
 
-  auto& obj = doc.as_object();
-  ret.ok = obj["ok"].as_bool() ? OK : ERROR;
-
-  switch (ret.ok) {
-  case ERROR:
-    ret.err = obj["error"].as_string();
-    break;
-  case OK: {
-    ret.data.id = obj["id"].as_number().to_uint64();
-    ret->status = parse_status(obj);
-    break;
-  }
-  }
-
   TRACE;
-  return ret;
+  return parser{doc};
 }
 
 optional<order_response_t> sf_client::cancel_order(const std::string& venue,
@@ -172,22 +248,8 @@ optional<order_response_t> sf_client::cancel_order(const std::string& venue,
   auto res = m_client->request(req).get();
   auto doc = res.extract_json().get();
 
-  auto& obj = doc.as_object();
-  ret.ok = obj["ok"].as_bool() ? OK : ERROR;
-
-  switch (ret.ok) {
-  case ERROR:
-    ret.err = obj["error"].as_string();
-    break;
-  case OK: {
-    ret->id = obj["id"].as_number().to_uint64();
-    ret->status = parse_status(obj);
-    break;
-  }
-  }
-
   TRACE;
-  return ret;
+  return parser{doc};
 }
 
 vector<string> parse_stringarr(const json::value& v) {
