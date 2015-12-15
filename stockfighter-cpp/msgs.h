@@ -18,12 +18,20 @@ struct optional {
   std::string err;
 
   T* operator->() {
-    if (ok == ERROR) throw std::runtime_error("dereference bad object");
+    if (ok == ERROR) throw std::runtime_error(err);
     return &data;
   }
   T const* operator->() const {
-    if (ok == ERROR) throw std::runtime_error("dereference bad object");
+    if (ok == ERROR) throw std::runtime_error(err);
     return &data;
+  }
+  T& operator*() {
+    if (ok == ERROR) throw std::runtime_error(err);
+    return data;
+  }
+  const T& operator*() const {
+    if (ok == ERROR) throw std::runtime_error(err);
+    return data;
   }
 
   T data;
@@ -82,6 +90,8 @@ struct order_status_t {
 
   // TODO: fills
   open_t open;
+
+  direction_t direction;
 
   std::string timestamp;
 };

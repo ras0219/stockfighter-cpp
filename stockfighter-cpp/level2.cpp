@@ -1,35 +1,25 @@
-#include <fstream>
 #include <iostream>
 #include <cstdlib>
 #include <thread>
 #include "msgs.h"
 #include "sf_client.h"
+#include "util.h"
 
 using namespace web::http;
 using namespace client;
 using namespace std;
 
-void fatal(const char* msg) {
-  cerr << msg << "\n";
-  abort();
-}
-
 int main(int argc, const char** argv) {
-  if (argc < 2) fatal("usage: main <apikeyfile>");
-  ifstream f(argv[1]);
-  if (!f) fatal("error: ifstream()");
-  string apikey;
-  if (!getline(f, apikey)) fatal("error: getline()");
+  if (argc < 2) FATAL_ERROR("usage: main <apikeyfile>");
+  string apikey = read_api_key_from_file(argv[1]);
 
   cout << "API Key: '" << apikey << "'\n";
 
   sf_client client(apikey);
 
-  string level = "sell_side";
-
-  auto slevel = client.start_level(level);
-  if (slevel->tickers.size() != 1) fatal("error: tickers");
-  if (slevel->venues.size() != 1) fatal("error: venues");
+  auto slevel = client.start_level("chock_a_block");
+  if (slevel->tickers.size() != 1) FATAL_ERROR("tickers");
+  if (slevel->venues.size() != 1) FATAL_ERROR("venues");
 
   string account = slevel->account;
   string venue = slevel->venues.front();

@@ -27,8 +27,9 @@ endif()
 include_directories(${Casablanca_INCLUDE_DIRS})
 link_libraries(${Casablanca_LIBRARIES} stdc++)
 
-add_library(sf STATIC msgs.cpp msgs.h sf_client.cpp sf_client.h)
+add_library(sf STATIC msgs.cpp msgs.h sf_client.cpp sf_client.h util.h util.cpp)
 link_libraries(sf)
 
 add_executable(level2 level2.cpp)
 add_executable(level3 level3.cpp)
+add_executable(start_level start_level.cpp)

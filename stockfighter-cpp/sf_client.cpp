@@ -1,6 +1,9 @@
 #include "sf_client.h"
 #include <cpprest/http_client.h>
 
+#define TRACE if (tracing) {                    \
+    cerr << "\n|trace|" << __FILE__ << ":" << __LINE__ << "|\n"; }
+
 using namespace web;
 using namespace http;
 using namespace std;
@@ -11,11 +14,14 @@ sf_client::sf_client(std::string apikey)
 
 sf_client::sf_client(string apikey, string host)
   : m_apikey(move(apikey)), m_client(make_unique<web::http::client::http_client>(host))
-{}
+{
+  tracing = false;
+}
 
 sf_client::~sf_client() {}
 
 optional<unit> sf_client::api_heartbeat() {
+  TRACE;
   optional<unit> ret;
 
   auto res = m_client->request("GET", "/ob/api/heartbeat").get();
@@ -29,10 +35,12 @@ optional<unit> sf_client::api_heartbeat() {
     break;
   }
 
+  TRACE;
   return ret;
 }
 
 optional<symbolslist_t> sf_client::venue_stocks(const std::string& venue) {
+  TRACE;
   optional<symbolslist_t> ret;
 
   auto res = m_client->request("GET", "/ob/api/venues/"+venue+"/stocks").get();
@@ -56,6 +64,7 @@ optional<symbolslist_t> sf_client::venue_stocks(const std::string& venue) {
   }
   }
 
+  TRACE;
   return ret;
 }
 
@@ -69,6 +78,7 @@ void parse_into(const json::array& arr, std::vector<request_t>& reqs) {
 }
 
 optional<orderbook_t> sf_client::orderbook_for_venue(const std::string& venue, const std::string& stock) {
+  TRACE;
   optional<orderbook_t> ret;
   
   auto res = m_client->request("GET", "/ob/api/venues/"+venue+"/stocks/"+stock).get();
@@ -88,6 +98,7 @@ optional<orderbook_t> sf_client::orderbook_for_venue(const std::string& venue, c
   }
   }
 
+  TRACE;
   return ret;
 }
 
@@ -100,7 +111,6 @@ json::value order_to_json(const order_request_t& order) {
   fields.emplace_back("qty", json::value::number(order.req.qty));
   fields.emplace_back("direction", json::value::string(order.direction == BUY ? "buy" : "sell"));
   fields.emplace_back("orderType", json::value::string(stringify(order.type)));
-
   return json::value::object(move(fields));
 }
 
@@ -109,12 +119,14 @@ order_status_t parse_status(const json::object& obj) {
   ret.original_qty = obj.at("originalQty").as_number().to_uint64();
   ret.outstanding_qty = obj.at("qty").as_number().to_uint64();
   ret.filled_qty = obj.at("totalFilled").as_number().to_uint64();
+  ret.direction = obj.at("direction").as_string() == "buy" ? BUY : SELL;
   ret.open = obj.at("open").as_bool() ? OPEN : CLOSED;
   ret.timestamp = obj.at("ts").as_string();
   return ret;
 }
 
 optional<order_response_t> sf_client::post_order(const order_request_t& order) {
+  TRACE;
   optional<order_response_t> ret;
   auto uri = "/ob/api/venues/"+order.venue+"/stocks/"+order.symbol+"/orders";
 
@@ -140,6 +152,41 @@ optional<order_response_t> sf_client::post_order(const order_request_t& order) {
   }
   }
 
+  TRACE;
+  return ret;
+}
+
+optional<order_response_t> sf_client::cancel_order(const std::string& venue,
+                                                   const std::string& symbol,
+                                                   uint64_t id) {
+  TRACE;
+  optional<order_response_t> ret;
+  auto uri = "/ob/api/venues/"+venue+"/stocks/"+symbol+"/orders/"+to_string(id);
+
+  cerr << "uri:" << uri << endl;
+  
+  http_request req("DELETE");
+  req.set_request_uri(uri);
+  req.headers().add("X-Starfighter-Authorization", m_apikey);
+
+  auto res = m_client->request(req).get();
+  auto doc = res.extract_json().get();
+
+  auto& obj = doc.as_object();
+  ret.ok = obj["ok"].as_bool() ? OK : ERROR;
+
+  switch (ret.ok) {
+  case ERROR:
+    ret.err = obj["error"].as_string();
+    break;
+  case OK: {
+    ret->id = obj["id"].as_number().to_uint64();
+    ret->status = parse_status(obj);
+    break;
+  }
+  }
+
+  TRACE;
   return ret;
 }
 
@@ -152,6 +199,7 @@ vector<string> parse_stringarr(const json::value& v) {
 }
 
 optional<gm_start_level_t> sf_client::start_level(const std::string& level) {
+  TRACE;
   optional<gm_start_level_t> ret;
 
   auto uri = "/gm/levels/" + level;
@@ -162,8 +210,6 @@ optional<gm_start_level_t> sf_client::start_level(const std::string& level) {
 
   auto res = m_client->request(req).get();
   auto doc = res.extract_json().get();
-
-  cout << doc.serialize() << endl;
 
   auto& obj = doc.as_object();
   ret.ok = obj["ok"].as_bool() ? OK : ERROR;
@@ -183,5 +229,41 @@ optional<gm_start_level_t> sf_client::start_level(const std::string& level) {
   }
   }
 
+  TRACE;
+  return ret;
+}
+
+optional<gm_start_level_t> sf_client::restart_level(uint64_t id) {
+  TRACE;
+  optional<gm_start_level_t> ret;
+
+  auto uri = "/gm/instances/" + to_string(id) + "/restart";
+
+  http_request req("POST");
+  req.set_request_uri(uri);
+  req.headers().add("X-Starfighter-Authorization", m_apikey);
+
+  auto res = m_client->request(req).get();
+  auto doc = res.extract_json().get();
+
+  auto& obj = doc.as_object();
+  ret.ok = obj["ok"].as_bool() ? OK : ERROR;
+
+  switch (ret.ok) {
+  case ERROR:
+    ret.err = obj["error"].as_string();
+    break;
+  case OK: {
+    ret->account = obj["account"].as_string();
+    ret->instance = obj["instanceId"].as_number().to_uint64();
+    // TODO instructions
+    ret->seconds_per_day = obj["secondsPerTradingDay"].as_number().to_uint64();
+    ret->tickers = parse_stringarr(obj["tickers"]);
+    ret->venues = parse_stringarr(obj["venues"]);
+    break;
+  }
+  }
+
+  TRACE;
   return ret;
 }
