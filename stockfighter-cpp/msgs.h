@@ -75,18 +75,21 @@ struct order_request_t {
   order_type_t type;
 };
 
-struct order_response_t {
-  uint64_t id;
-
+struct order_status_t {
   uint64_t original_qty;
   uint64_t outstanding_qty;
   uint64_t filled_qty;
 
   // TODO: fills
-
   open_t open;
 
   std::string timestamp;
+};
+
+struct order_response_t {
+  uint64_t id;
+
+  order_status_t status;
 };
 
 struct gm_start_level_t {
@@ -118,4 +121,5 @@ std::ostream& operator<<(std::ostream& os, symbolslist_t const& msg);
 std::ostream& operator<<(std::ostream& os, request_t const& req);
 std::ostream& operator<<(std::ostream& os, orderbook_t const& msg);
 std::ostream& operator<<(std::ostream& os, order_response_t const& msg);
+std::ostream& operator<<(std::ostream& os, order_status_t const& msg);
 std::ostream& operator<<(std::ostream& os, gm_start_level_t const& msg);

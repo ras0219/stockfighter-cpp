@@ -57,13 +57,20 @@ std::ostream& operator<<(std::ostream& os, const orderbook_t& msg) {
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const order_response_t& msg) {
-  os << "order_response_t{id{"
-     << msg.id << "}, original_qty{"
+std::ostream& operator<<(std::ostream& os, const order_status_t& msg) {
+  os << "order_status_t{original_qty{"
      << msg.original_qty << "}, outstanding_qty{"
      << msg.outstanding_qty << "}, filled_qty{"
      << msg.filled_qty << "}, timestamp{"
      << msg.timestamp << "}}";
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const order_response_t& msg) {
+  os << "order_response_t{id{"
+     << msg.id << "},"
+     << msg.status
+     << "}";
   return os;
 }
 

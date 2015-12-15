@@ -8,6 +8,7 @@
 using namespace web::http;
 using namespace client;
 using namespace std;
+using namespace literals;
 
 void fatal(const char* msg) {
   cerr << msg << "\n";
@@ -31,46 +32,68 @@ int main(int argc, const char** argv) {
   if (slevel->tickers.size() != 1) fatal("error: tickers");
   if (slevel->venues.size() != 1) fatal("error: venues");
 
+  cout << "=== level start ===" << endl;
+
+  this_thread::sleep_for(3s);
+  
   string account = slevel->account;
   string venue = slevel->venues.front();
   string symbol = slevel->tickers.front();
 
-  uint64_t shares_to_buy = 100000;
+  vector<uint64_t> outstanding_orders;
 
-  while (shares_to_buy > 0) {
-    using namespace literals;
+  auto obook = client.orderbook_for_venue(venue, symbol);
 
-    auto obook = client.orderbook_for_venue(venue, symbol);
+  vector<request_t> asks = move(obook->asks);
+  vector<request_t> bids = move(obook->bids);
 
-    cout << "obook: " << obook << "\n";
+  uint64_t best_ask = 0;
+  uint64_t best_bid = 0;
 
-    if (obook->asks.empty()) {
-      this_thread::sleep_for(1s);
-      continue;
-    }
-
-    order_request_t ort;
-    ort.account = account;
-    ort.venue = venue;
-    ort.symbol = symbol;
-    ort.req = obook->asks.front();
-    ort.direction = BUY;
-    ort.type = IOC;
-
-    if (ort.req.qty > shares_to_buy)
-      ort.req.qty = shares_to_buy;
-    try {
-      auto res = client.post_order(ort);
-      cout << "order: " << res << endl;
-
-      shares_to_buy -= res->filled_qty;
-    } catch (exception& e) {
-      cerr << "warning: " << e.what() << "\n";
-    } catch (...) {
-      cerr << "warning: unknown error\n";
-    }
-
-    this_thread::sleep_for(1s);
+  uint64_t default_spread = 75;
+  
+  if (asks.empty() && bids.empty()) {
+    // do nothing
+  } else if (asks.empty()) {
+    best_ask = asks.front().price;
+    best_bid = best_ask - default_spread;
+  } else if (bids.empty()) {
+    best_bid = bids.front().price;
+    best_ask = best_bid + default_spread;
+  } else {
+    best_ask = asks.front().price;
+    best_bid = bids.front().price;
   }
+
+  cout << "best ask: " << best_ask << endl;
+  cout << "best bid: " << best_bid << endl;
+
+
+  
+  
+
+  // order_request_t ort;
+  //   ort.account = account;
+  //   ort.venue = venue;
+  //   ort.symbol = symbol;
+  //   ort.req = obook->asks.front();
+  //   ort.direction = BUY;
+  //   ort.type = IOC;
+
+  //   if (ort.req.qty > shares_to_buy)
+  //     ort.req.qty = shares_to_buy;
+  //   try {
+  //     auto res = client.post_order(ort);
+  //     cout << "order: " << res << endl;
+
+  //     shares_to_buy -= res->filled_qty;
+  //   } catch (exception& e) {
+  //     cerr << "warning: " << e.what() << "\n";
+  //   } catch (...) {
+  //     cerr << "warning: unknown error\n";
+  //   }
+
+  //   this_thread::sleep_for(1s);
+  // }
   return 0;
 }

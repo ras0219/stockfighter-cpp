@@ -25,7 +25,7 @@ int main(int argc, const char** argv) {
 
   sf_client client(apikey);
 
-  string level = "chock_a_block";
+  string level = "sell_side";
 
   auto slevel = client.start_level(level);
   if (slevel->tickers.size() != 1) fatal("error: tickers");
@@ -63,7 +63,7 @@ int main(int argc, const char** argv) {
       auto res = client.post_order(ort);
       cout << "order: " << res << endl;
 
-      shares_to_buy -= res->filled_qty;
+      shares_to_buy -= res->status.filled_qty;
     } catch (exception& e) {
       cerr << "warning: " << e.what() << "\n";
     } catch (...) {

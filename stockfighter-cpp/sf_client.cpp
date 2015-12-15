@@ -104,6 +104,16 @@ json::value order_to_json(const order_request_t& order) {
   return json::value::object(move(fields));
 }
 
+order_status_t parse_status(const json::object& obj) {
+  order_status_t ret;
+  ret.original_qty = obj.at("originalQty").as_number().to_uint64();
+  ret.outstanding_qty = obj.at("qty").as_number().to_uint64();
+  ret.filled_qty = obj.at("totalFilled").as_number().to_uint64();
+  ret.open = obj.at("open").as_bool() ? OPEN : CLOSED;
+  ret.timestamp = obj.at("ts").as_string();
+  return ret;
+}
+
 optional<order_response_t> sf_client::post_order(const order_request_t& order) {
   optional<order_response_t> ret;
   auto uri = "/ob/api/venues/"+order.venue+"/stocks/"+order.symbol+"/orders";
@@ -125,11 +135,7 @@ optional<order_response_t> sf_client::post_order(const order_request_t& order) {
     break;
   case OK: {
     ret.data.id = obj["id"].as_number().to_uint64();
-    ret.data.original_qty = obj["originalQty"].as_number().to_uint64();
-    ret.data.outstanding_qty = obj["qty"].as_number().to_uint64();
-    ret.data.filled_qty = obj["totalFilled"].as_number().to_uint64();
-    ret.data.open = obj["open"].as_bool() ? OPEN : CLOSED;
-    ret.data.timestamp = obj["ts"].as_string();
+    ret->status = parse_status(obj);
     break;
   }
   }
