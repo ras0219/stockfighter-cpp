@@ -139,3 +139,4 @@ std::ostream& operator<<(std::ostream& os, orderbook_t const& msg);
 std::ostream& operator<<(std::ostream& os, order_response_t const& msg);
 std::ostream& operator<<(std::ostream& os, order_status_t const& msg);
 std::ostream& operator<<(std::ostream& os, gm_start_level_t const& msg);
+std::ostream& operator<<(std::ostream& os, order_request_t const& msg);

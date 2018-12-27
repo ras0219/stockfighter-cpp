@@ -87,3 +87,8 @@ std::ostream& operator<<(std::ostream& os, const gm_start_level_t& msg) {
   os << "}}";
   return os;
 }
+
+std::ostream& operator<<(std::ostream& os, order_request_t const& msg) {
+    os << "order_request_t{" << (msg.direction == BUY ? "BUY" : "SELL") << ", " << msg.req << "}";
+    return os;
+}
